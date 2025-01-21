@@ -1,5 +1,5 @@
 # app/routers/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
@@ -62,7 +62,6 @@ def signup(user_create: UserCreate, db: Session = Depends(get_db)):
 def login(email: str, password: str, db: Session = Depends(get_db)):
     """
     유저 로그인 (GET 요청)
-    실제로는 POST를 많이 사용하지만, 요구사항에 맞춰 GET으로 작성하였습니다.
     파라미터: ?email=xxx&password=xxx
     """
     user = db.query(User).filter(User.email == email).first()
@@ -121,3 +120,17 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"detail": "User deleted successfully"}
+
+@router.post("/logout")
+def logout(
+    response: Response,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    유저 로그아웃
+    - 클라이언트의 쿠키/로컬스토리지에서 토큰을 제거하도록 안내
+    """
+    # 쿠키를 사용하는 경우 서버에서 쿠키 삭제
+    response.delete_cookie(key="access_token")
+    
+    return {"detail": "Successfully logged out"}
