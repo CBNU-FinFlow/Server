@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     email: str
     password: str
     investment_profile: Optional[str] = None
+    profile_image: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: str
@@ -16,12 +17,14 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
     investment_profile: Optional[str] = None
+    profile_image: Optional[str] = None
 
 class UserOut(BaseModel):
     uid: int
     name: str
     email: str
     investment_profile: Optional[str] = None
+    profile_image: Optional[str] = None
 
     class Config:
         orm_mode = True
