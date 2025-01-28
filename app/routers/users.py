@@ -50,7 +50,8 @@ def signup(user_create: UserCreate, db: Session = Depends(get_db)):
         name=user_create.name,
         email=user_create.email,
         password=hashed_password,
-        investment_profile=user_create.investment_profile
+        investment_profile=user_create.investment_profile,
+        profile_image=user_create.profile_image
     )
     db.add(new_user)
     db.commit()
@@ -98,6 +99,8 @@ def update_user(
         user.password = get_password_hash(user_update.password)
     if user_update.investment_profile is not None:
         user.investment_profile = user_update.investment_profile
+    if user_update.profile_image is not None:
+        user.profile_image = user_update.profile_image
 
     db.commit()
     db.refresh(user)
