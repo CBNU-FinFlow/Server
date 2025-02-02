@@ -6,8 +6,8 @@ class User(Base):
     __tablename__ = "users"
 
     uid = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False)
-    investment_profile = Column(String, nullable=True)
-    profile_image = Column(String, nullable=True)
+    name = Column(String(100), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    investment_profile = Column(String(100), nullable=True)
+    profile_image = Column(String(255), nullable=True)
