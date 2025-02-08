@@ -9,10 +9,6 @@ class UserCreate(BaseModel):
     investment_profile: Optional[str] = None
     profile_image: Optional[str] = None
 
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
