@@ -16,5 +16,9 @@ class Asset(Base):
     quantity = Column(Float, nullable=False)  # 보유 수량
     purchase_price = Column(Float, nullable=False)  # 매입 단가
     current_value = Column(Float, nullable=True)  # 현재 평가 금액
+    account_id = Column(
+        Integer, ForeignKey("accounts.account_id"), nullable=False
+    )  # 계좌 ID 추가 (보유 자산 다른 계좌로 이동)
 
-    owner = relationship("User", back_populates="assets")  # 유저와의 관계
+    owner = relationship("User", back_populates="assets")  # 유저 관계
+    account = relationship("Account", back_populates="assets")  # 계좌 관계

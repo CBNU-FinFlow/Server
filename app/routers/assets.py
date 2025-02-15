@@ -1,12 +1,12 @@
-# app/routers/assets.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.db.database import get_db
 from app.models.asset import Asset
+from app.models.account import Account
 from app.models.user import User
-from app.schemas.asset import AssetCreate, AssetUpdate, AssetOut
+from app.schemas.asset import AssetCreate, AssetUpdate, AssetOut, AssetTransfer
 from app.routers.users import get_current_user
 
 router = APIRouter(prefix="/assets", tags=["Assets"])
@@ -52,6 +52,46 @@ def update_asset(
 
     for key, value in asset_data.dict(exclude_unset=True).items():
         setattr(asset, key, value)
+
+    db.commit()
+    db.refresh(asset)
+    return asset
+
+
+@router.post("/{asset_id}/transfer", response_model=AssetOut)
+def transfer_asset(
+    asset_id: int,
+    transfer_data: AssetTransfer,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """보유 자산을 다른 계좌로 이동"""
+    asset = (
+        db.query(Asset)
+        .filter(Asset.asset_id == asset_id, Asset.user_id == current_user.uid)
+        .first()
+    )
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    new_account = (
+        db.query(Account)
+        .filter(
+            Account.account_id == transfer_data.new_account_id,
+            Account.user_id == current_user.uid,
+        )
+        .first()
+    )
+    if not new_account:
+        raise HTTPException(status_code=404, detail="New account not found")
+
+    if asset.account_id == new_account.account_id:
+        raise HTTPException(
+            status_code=400, detail="Cannot transfer to the same account"
+        )
+
+    # 자산 이동
+    asset.account_id = new_account.account_id
 
     db.commit()
     db.refresh(asset)

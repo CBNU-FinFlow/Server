@@ -15,3 +15,6 @@ class User(Base):
     profile_image = Column(String(255), nullable=True)
 
     assets = relationship("Asset", back_populates="owner", cascade="all, delete-orphan")
+    accounts = relationship(
+        "Account", back_populates="user", cascade="all, delete-orphan"
+    )

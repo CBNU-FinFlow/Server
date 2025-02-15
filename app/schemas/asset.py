@@ -1,4 +1,3 @@
-# app/schemas/asset.py
 from pydantic import BaseModel
 from typing import Optional
 
@@ -9,6 +8,7 @@ class AssetBase(BaseModel):
     quantity: float
     purchase_price: float
     current_value: Optional[float] = None
+    account_id: int  # 계좌 ID 추가
 
 
 class AssetCreate(AssetBase):
@@ -19,11 +19,9 @@ class AssetUpdate(BaseModel):
     quantity: Optional[float] = None
     purchase_price: Optional[float] = None
     current_value: Optional[float] = None
+    account_id: Optional[int] = None  # 계좌 변경 가능
 
 
-class AssetOut(AssetBase):
-    asset_id: int
-    user_id: int
-
-    class Config:
-        orm_mode = True
+class AssetTransfer(BaseModel):
+    new_account_id: int  # 새 계좌 ID
+    amount: float  # 이동할 금액
