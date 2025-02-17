@@ -9,8 +9,9 @@ from app.models import portfolio
 from app.models import financial_product
 from app.models import sector
 
-from app.routers import users
 from app.routers import assets
+from app.routers import users, portfolio
+from app.models import user as user_model
 
 # DB 생성 전에 모든 모델이 등록되어야 합니다.
 Base.metadata.create_all(bind=engine)
@@ -29,3 +30,4 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(users.router)
 app.include_router(assets.router)
+app.include_router(portfolio.router)
