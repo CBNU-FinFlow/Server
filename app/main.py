@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
-from app.routers import users
+from app.routers import users , portfolio
 from app.models import user as user_model
 
 # DB 생성
@@ -21,3 +21,7 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(users.router)
+
+#포트폴리오 라우터 (테스트)
+
+app.include_router(portfolio.router)
