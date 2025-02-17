@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from fastapi.responses import JSONResponse
 
 from app.db.database import get_db
 from app.models.user import User
@@ -80,7 +81,7 @@ def signup(user_create: UserCreate, db: Session = Depends(get_db)):
         "유저의 이메일과 비밀번호를 확인한 후 JWT 토큰을 발급합니다. \n"
         "파라미터는 쿼리 스트링을 통해 전달됩니다."
     ),
-    response_description="JWT 토큰과 토큰 타입을 반환합니다.",
+    response_description="JWT 토큰과 유저 정보를 반환합니다.",
     responses={
         401: {"description": "Invalid email or password"}
     }
@@ -103,7 +104,9 @@ def login(email: str, password: str, db: Session = Depends(get_db)):
     # JWT 토큰 생성
     access_token = create_access_token(data={"sub": str(user.uid)})
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    # User 객체를 UserOut 모델로 변환하여 반환
+    user_out = UserOut.from_orm(user)  # UserOut 모델로 변환
+    return JSONResponse(content={"access_token": access_token, "token_type": "bearer", "user": user_out.dict()}, headers={"Authorization": f"Bearer {access_token}"})
 
 @router.patch(
     "/{user_id}",
@@ -199,20 +202,3 @@ def logout(
     response.delete_cookie(key="access_token")
     
     return {"detail": "Successfully logged out"}
-
-@router.get(
-    "/",
-    response_model=UserOut,
-    summary="현재 유저 정보 조회",
-    description=(
-        "JWT 토큰으로 인증된 현재 유저의 정보를 반환합니다. \n"
-        "토큰이 유효하지 않으면 403 Forbidden 상태 코드가 응답됩니다."
-    ),
-    response_description="현재 유저 정보를 반환합니다.",
-    responses={
-        403: {"description": "Token is missing or invalid"}
-    }
-)
-def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """현재 유저 정보 조회 API"""
-    return current_user
