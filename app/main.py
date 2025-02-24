@@ -1,9 +1,13 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.models.financial_products import FinancialProducts  
+from app.models.transaction import TransactionHistory
 from app.db.database import Base, engine
 from app.routers import users , portfolio
+from app.routers.transaction import router as transaction_router
 from app.models import user as user_model
+import app.models.transaction
 
 # DB 생성
 Base.metadata.create_all(bind=engine)
@@ -25,3 +29,7 @@ app.include_router(users.router)
 #포트폴리오 라우터 (테스트)
 
 app.include_router(portfolio.router)
+
+#트랜잭션히스토리 라우터
+
+app.include_router(transaction_router, prefix="/api", tags=["transactions"])
