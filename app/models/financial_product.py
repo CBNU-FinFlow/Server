@@ -15,3 +15,7 @@ class FinancialProducts(Base):
 
     sector_id = Column(Integer, ForeignKey("sectors.sector_id"), nullable=False)
     sector = relationship("Sectors", back_populates="financial_products")
+
+    transactions = relationship(
+        "TransactionHistory", back_populates="financial_product"
+    )
