@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.models.financial_products import FinancialProducts
+from app.models.financial_product import FinancialProducts
 from app.models.transaction import TransactionHistory
 from app.db.database import Base, engine
 
