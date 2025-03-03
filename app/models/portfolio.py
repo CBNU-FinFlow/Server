@@ -1,8 +1,10 @@
 # app/models/portfolio.py
+
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, DECIMAL
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
+from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
@@ -13,6 +15,7 @@ class Portfolio(Base):
     portfolio_name = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey("users.uid"), nullable=False)
 
+    transactions = relationship("TransactionHistory", back_populates="portfolio")
     # User와의 관계
     user = relationship("User", back_populates="portfolios")
 

@@ -1,6 +1,8 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.models.financial_product import FinancialProducts
+from app.models.transaction import TransactionHistory
 from app.db.database import Base, engine
 
 # 모든 모델을 명시적으로 import 하여 등록
@@ -11,7 +13,9 @@ from app.models import sector
 
 from app.routers import assets
 from app.routers import users, portfolio
+from app.routers.transaction import router as transaction_router
 from app.models import user as user_model
+import app.models.transaction
 
 # DB 생성 전에 모든 모델이 등록되어야 합니다.
 Base.metadata.create_all(bind=engine)
@@ -31,3 +35,7 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(assets.router)
 app.include_router(portfolio.router)
+
+# 트랜잭션히스토리 라우터
+
+app.include_router(transaction_router, tags=["transactions"])

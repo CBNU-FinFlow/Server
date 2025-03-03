@@ -2,6 +2,7 @@
 from pydantic import BaseModel
 from typing import Optional
 
+
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -9,11 +10,13 @@ class UserCreate(BaseModel):
     investment_profile: Optional[str] = None
     profile_image: Optional[str] = None
 
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
     investment_profile: Optional[str] = None
     profile_image: Optional[str] = None
+
 
 class UserOut(BaseModel):
     uid: int
