@@ -53,6 +53,5 @@ class PortfolioHoldings(Base):
     price = Column(DECIMAL(18, 2), nullable=False)
     quantity = Column(DECIMAL(18, 4), nullable=False)
 
-    # 관계 설정 변경: "FinancialProduct" -> "FinancialProducts"
     portfolio = relationship("Portfolio", back_populates="holdings")
-    financial_product = relationship("FinancialProduct")
+    financial_product = relationship("FinancialProducts")
