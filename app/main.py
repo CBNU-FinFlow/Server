@@ -38,4 +38,4 @@ app.include_router(portfolio.router)
 
 # 트랜잭션히스토리 라우터
 
-app.include_router(transaction_router, prefix="/api", tags=["transactions"])
+app.include_router(transaction_router, tags=["transactions"])

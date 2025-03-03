@@ -27,6 +27,9 @@ class DeleteResponse(BaseModel):
     message: str
 
 
+class TransactionCreate(TransactionBase):
+    pass
+
 # 페이징 응답을 위해 선택적으로 추가
 class TransactionListResponse(BaseModel):
     total_count: int
