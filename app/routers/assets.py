@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy import or_
 
 from app.db.database import SessionLocal
 from app.models.portfolio import PortfolioHoldings
@@ -14,6 +15,7 @@ from app.schemas.asset import (
     AssetPageResponse,
 )
 from app.schemas.financial_product import FinancialProductRead
+from app.models.financial_product import FinancialProducts
 
 router = APIRouter(prefix="/assets", tags=["Assets"])
 
@@ -208,3 +210,59 @@ def delete_assets(
 
     db.commit()
     return {"detail": "선택된 보유 자산이 삭제되었습니다."}
+
+
+@router.get(
+    "/search",
+    response_model=List[FinancialProductRead],
+    summary="금융 상품 검색",
+    responses={
+        200: {"description": "검색 결과를 성공적으로 반환"},
+        400: {"description": "잘못된 검색어"},
+    },
+)
+def search_financial_products(
+    query: str = Query(..., min_length=1, description="검색어 (티커 또는 상품명)"),
+    db: Session = Depends(get_db),
+):
+    """
+    **금융 상품을 티커 또는 상품명으로 검색하는 API.**
+
+    - 검색어는 대소문자를 구분하지 않습니다.
+    - 부분 일치도 검색됩니다.
+    - 티커와 상품명 모두에서 검색합니다.
+
+    **Parameters:**
+    - `query`: 검색할 티커 또는 상품명 (최소 1자 이상)
+
+    **Returns:**
+    - 검색 조건과 일치하는 금융 상품 목록
+    """
+    if not query:
+        raise HTTPException(
+            status_code=400,
+            detail="검색어를 입력해주세요"
+        )
+
+    # 대소문자 구분 없이 검색하기 위해 검색어를 소문자로 변환
+    search = f"%{query.lower()}%"
+    
+    results = (
+        db.query(FinancialProducts)
+        .filter(
+            or_(
+                FinancialProducts.ticker.ilike(search),
+                FinancialProducts.product_name.ilike(search)
+            )
+        )
+        .all()
+    )
+
+    return [
+        FinancialProductRead(
+            financial_product_id=product.financial_product_id,
+            product_name=product.product_name,
+            ticker=product.ticker
+        )
+        for product in results
+    ]

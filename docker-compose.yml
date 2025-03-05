@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+    db:
+        image: mysql:8.0
+        container_name: finflow_db
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE: ${MYSQL_DATABASE}
+        ports:
+            - '3306:3306'
+        volumes:
+            - mysql_data:/var/lib/mysql
+            - ./Dump20250205:/docker-entrypoint-initdb.d # 초기화 SQL 파일 위치
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'mysqladmin',
+                    'ping',
+                    '-h',
+                    'localhost',
+                    '-u',
+                    'root',
+                    '-p${MYSQL_ROOT_PASSWORD}',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    api:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: finflow_api
+        restart: always
+        ports:
+            - '8000:8000'
+        environment:
+            - DB_URL=${DB_URL}
+            - SECRET_KEY=${SECRET_KEY}
+            - ALGORITHM=${ALGORITHM}
+            - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+        volumes:
+            - .:/app
+        depends_on:
+            db:
+                condition: service_healthy
+        command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+    mysql_data:
