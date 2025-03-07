@@ -1,59 +1,29 @@
 # Server
 
-## 폴더 구조
-
-```
-.
-├── .env                # 환경변수 파일
-├── app
-│   ├── core
-│   │   ├── config.py
-│   │   └── security.py
-│   ├── db
-│   │   └── database.py
-│   ├── main.py
-│   ├── models
-│   │   └── user.py
-│   ├── routers
-│   │   └── users.py
-│   └── schemas
-│       └── user.py
-└── requirements.txt
-```
-
 ## 실행 방법
 
-1. 필요한 라이브러리를 설치한다.
+1. 프로젝트 루트 디렉토리에 `.env` 파일을 생성한다.
    ```
-   pip install -r requirements.txt
-   ```
-2. 서버를 실행한다.
-   ```
-   uvicorn app.main:app --reload
-   ```
+   # .env
+   # Database
+   MYSQL_ROOT_PASSWORD=your_root_password
+   MYSQL_DATABASE=finflow
+   DB_URL=mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE}
 
-```
-Server
-├─ Dump20250205
-│  ├─ finflow_financial_products.sql
-│  └─ finflow_sectors.sql
-├─ README.md
-├─ app
-│  ├─ core
-│  │  ├─ config.py
-│  │  └─ security.py
-│  ├─ db
-│  │  └─ database.py
-│  ├─ main.py
-│  ├─ models
-│  │  ├─ financial_product.py
-│  │  ├─ portfolio.py
-│  │  ├─ sector.py
-│  │  └─ user.py
-│  ├─ routers
-│  │  └─ users.py
-│  └─ schemas
-│     └─ user.py
-└─ requirements.txt
-
-```
+   # JWT Settings
+   SECRET_KEY=your-secret-key-here
+   ALGORITHM=HS256
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   ```
+2. 프로젝트 루트 디렉토리에서 다음 명령어를 실행하여 컨테이너를 빌드하고 실행한다.
+   ```
+   docker-compose up -d
+   ```
+3. 컨테이너의 로그를 확인하려면 다음 명령어를 치면 된다.
+   ```
+   docker-compose logs -f
+   ```
+4. 모든 컨테이너를 종료하려면, 루트 디렉토리에서 다음 명령어를 치면 된다.
+   ```
+   docker-compose down
+   ```
