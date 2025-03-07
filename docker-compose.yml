@@ -23,7 +23,7 @@ services:
                     'mysqladmin',
                     'ping',
                     '-h',
-                    'localhost',
+                    'db',
                     '-u',
                     'root',
                     '-p${MYSQL_ROOT_PASSWORD}',
