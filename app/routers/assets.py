@@ -117,10 +117,6 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
     **새로운 보유 자산과 거래 기록을 추가하는 API.**
 
     - 요청 본문에 `portfolio_id`, `financial_product_id`, `currency_code`, `price`, `quantity`, `transaction_type`, `transaction_date`를 포함해야 합니다.
-
-    **Response:**
-    - `201 Created`: 성공적으로 자산과 거래가 추가됨
-    - `400 Bad Request`: 잘못된 요청일 경우
     """
     existing = (
         db.query(PortfolioHoldings)
@@ -136,56 +132,101 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
         if existing.currency_code != asset_data.currency_code:
             raise HTTPException(status_code=400, detail="요청한 화폐 단위가 기존 화폐 단위와 다릅니다.")
         
-        # 판매일 경우 profit_rate 계산
         if asset_data.transaction_type == "판매":
-            # 기존 자산의 구매가를 가져옴
             purchase_price = existing.price
-            # profit_rate 계산 (판매가 - 구매가) / 구매가 * 100
             profit_rate = ((Decimal(asset_data.price) - purchase_price) / purchase_price) * 100
-            
-            # 판매 시 수량 감소
-            if existing.quantity < Decimal(asset_data.quantity):  # Decimal로 변환
+
+            sale_quantity = Decimal(asset_data.quantity)
+            if existing.quantity < sale_quantity:
                 raise HTTPException(status_code=400, detail="판매 수량이 현재 보유 중인 자산의 수량보다 많습니다.")
-            existing.quantity -= Decimal(asset_data.quantity)  # 판매 시 수량 감소
+            
+            existing.quantity -= sale_quantity
 
-        else:  # 구매일 경우
-            profit_rate = None  # 구매일 경우 profit_rate는 None으로 설정
-            new_quantity = Decimal(asset_data.quantity)  # 구매 수량을 Decimal로 변환
-            new_price = Decimal(asset_data.price)  # 구매 가격을 Decimal로 변환
+            new_transaction = TransactionHistory(
+                portfolio_id=asset_data.portfolio_id,
+                financial_product_id=asset_data.financial_product_id,
+                transaction_type=asset_data.transaction_type,
+                price=Decimal(asset_data.price),
+                quantity=sale_quantity,
+                created_at=asset_data.transaction_date,
+                currency_code=existing.currency_code,
+                profit_rate=profit_rate,
+            )
+            db.add(new_transaction)
+            
+            # 미리 필요한 데이터를 저장
+            fp = existing.financial_product
+            portfolio_id = existing.portfolio_id
+            currency_code = existing.currency_code
+            price = existing.price
 
-            # 가격 재계산 (평균 가격 계산)
-            total_value = (existing.price * existing.quantity) + (new_price * new_quantity)  # 총 가치 계산
-            existing.quantity += new_quantity  # 총 수량 업데이트
-            existing.price = total_value / existing.quantity  # 평균 가격 재계산
+            # 보유량 0인 경우 삭제 후 응답 반환
+            if existing.quantity == 0:
+                asset_read = AssetRead(
+                    portfolio_id=portfolio_id,
+                    currency_code=currency_code,
+                    price=price,
+                    quantity=Decimal("0"),
+                    financial_product=FinancialProductRead(
+                        financial_product_id=fp.financial_product_id,
+                        product_name=fp.product_name,
+                        ticker=fp.ticker,
+                    ),
+                )
+                db.delete(existing)
+                db.commit()
+                return asset_read
+            else:
+                db.commit()
+                db.refresh(existing)
+                return AssetRead(
+                    portfolio_id=existing.portfolio_id,
+                    currency_code=existing.currency_code,
+                    price=existing.price,
+                    quantity=existing.quantity,
+                    financial_product=FinancialProductRead(
+                        financial_product_id=existing.financial_product.financial_product_id,
+                        product_name=existing.financial_product.product_name,
+                        ticker=existing.financial_product.ticker,
+                    ),
+                )
 
-        # 거래 기록 추가 (구매 시에도 항상 추가)
-        new_transaction = TransactionHistory(
-            portfolio_id=asset_data.portfolio_id,
-            financial_product_id=asset_data.financial_product_id,
-            transaction_type=asset_data.transaction_type,
-            price=Decimal(asset_data.price),  # Decimal로 변환
-            quantity=Decimal(asset_data.quantity),  # Decimal로 변환
-            created_at=asset_data.transaction_date,
-            currency_code=existing.currency_code,
-            profit_rate=profit_rate,  # profit_rate 추가
-        )
-        db.add(new_transaction)
+        else:  # 구매 처리
+            profit_rate = None
+            new_quantity = Decimal(asset_data.quantity)
+            new_price = Decimal(asset_data.price)
 
-        db.commit()  # 데이터베이스에 변경 사항을 커밋
-        db.refresh(existing)  # 변경된 PortfolioHoldings 객체를 새로 고침
+            total_value = (existing.price * existing.quantity) + (new_price * new_quantity)
+            existing.quantity += new_quantity
+            existing.price = total_value / existing.quantity
 
-        return AssetRead(
-            portfolio_id=existing.portfolio_id,
-            currency_code=existing.currency_code,
-            price=existing.price,
-            quantity=existing.quantity,
-            financial_product=FinancialProductRead(
-                financial_product_id=existing.financial_product.financial_product_id,
-                product_name=existing.financial_product.product_name,
-                ticker=existing.financial_product.ticker,
-            ),
-        )
+            new_transaction = TransactionHistory(
+                portfolio_id=asset_data.portfolio_id,
+                financial_product_id=asset_data.financial_product_id,
+                transaction_type=asset_data.transaction_type,
+                price=Decimal(asset_data.price),
+                quantity=new_quantity,
+                created_at=asset_data.transaction_date,
+                currency_code=existing.currency_code,
+                profit_rate=profit_rate,
+            )
+            db.add(new_transaction)
+            db.commit()
+            db.refresh(existing)
 
+            return AssetRead(
+                portfolio_id=existing.portfolio_id,
+                currency_code=existing.currency_code,
+                price=existing.price,
+                quantity=existing.quantity,
+                financial_product=FinancialProductRead(
+                    financial_product_id=existing.financial_product.financial_product_id,
+                    product_name=existing.financial_product.product_name,
+                    ticker=existing.financial_product.ticker,
+                ),
+            )
+
+    # 신규 자산 생성
     new_asset = PortfolioHoldings(
         portfolio_id=asset_data.portfolio_id,
         financial_product_id=asset_data.financial_product_id,
@@ -195,12 +236,11 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
     )
     db.add(new_asset)
 
-    # 거래 기록 추가
     new_transaction = TransactionHistory(
         portfolio_id=asset_data.portfolio_id,
         financial_product_id=asset_data.financial_product_id,
         transaction_type=asset_data.transaction_type,
-        price=Decimal(asset_data.price),  # Decimal로 변환
+        price=Decimal(asset_data.price),
         quantity=asset_data.quantity,
         created_at=asset_data.transaction_date,
         currency_code=new_asset.currency_code,
