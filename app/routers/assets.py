@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from decimal import Decimal
 
 from app.db.database import SessionLocal
-from app.models.portfolio import PortfolioHoldings
+from app.models.portfolio import PortfolioHoldings, Portfolio
 from app.schemas.asset import (
     AssetRead,
     AssetCreate,
@@ -36,13 +36,15 @@ def get_db():
 @router.get(
     "/",
     response_model=AssetPageResponse,
-    summary="보유 자산 조회 (페이징 지원 + FinancialProduct 포함)",
+    summary="특정 포트폴리오의 보유 자산 조회 (페이징 지원)",
     responses={
         200: {"description": "자산 목록을 성공적으로 조회함."},
         400: {"description": "잘못된 요청 파라미터."},
+        404: {"description": "포트폴리오를 찾을 수 없음."},
     },
 )
 def read_assets(
+    portfolio_id: int = Query(..., description="조회할 포트폴리오 ID"),
     page: int = Query(1, ge=1, description="페이지 번호 (1부터 시작)"),
     per_page: int = Query(
         10, ge=1, le=100, description="페이지당 표시할 개수 (최대 100)"
@@ -50,19 +52,37 @@ def read_assets(
     db: Session = Depends(get_db),
 ):
     """
-    **보유 자산 목록을 조회하는 API (페이징 지원).**
+    **특정 포트폴리오의 보유 자산 목록을 조회하는 API (페이징 지원).**
 
+    - 특정 포트폴리오 ID에 속하는 자산들만 조회합니다.
     - `financial_product_id` 대신 `financial_product` 객체를 포함하여 반환합니다.
-    - `portfolio_id`, `currency_code`, `price`, `quantity` 등의 정보를 제공합니다.
+    - `currency_code`, `price`, `quantity` 등의 정보를 제공합니다.
+
+    **Query Parameters:**
+    - **portfolio_id**: 조회할 포트폴리오 ID
+    - **page**: 페이지 번호 (1부터 시작)
+    - **per_page**: 페이지당 표시할 개수 (최대 100)
 
     **Response:**
     - `200 OK`: 성공적으로 자산 목록을 반환
     - `400 Bad Request`: 요청이 잘못되었을 경우
+    - `404 Not Found`: 해당 포트폴리오를 찾을 수 없는 경우
     """
+    # 포트폴리오 존재 여부 확인
+    portfolio = db.query(Portfolio).filter(Portfolio.portfolio_id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="포트폴리오를 찾을 수 없습니다.")
+    
     offset = (page - 1) * per_page
-    total = db.query(PortfolioHoldings).count()  # 전체 데이터 개수
+    
+    # 특정 포트폴리오에 속한 자산만 필터링
+    total = db.query(PortfolioHoldings).filter(
+        PortfolioHoldings.portfolio_id == portfolio_id
+    ).count()
 
-    holdings_query = db.query(PortfolioHoldings).offset(offset).limit(per_page).all()
+    holdings_query = db.query(PortfolioHoldings).filter(
+        PortfolioHoldings.portfolio_id == portfolio_id
+    ).offset(offset).limit(per_page).all()
 
     # financial_product 정보를 포함하여 응답 리스트 구성
     results = [
