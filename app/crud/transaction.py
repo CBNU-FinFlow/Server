@@ -4,15 +4,16 @@ from sqlalchemy.orm import Session
 from app.models.transaction import TransactionHistory
 from app.schemas.transaction import TransactionCreate
 
-def get_transactions(db: Session, skip: int = 0, limit: int = 10):
+def get_transactions(db: Session, portfolio_id: int, skip: int = 0, limit: int = 10):
     return (
         db.query(TransactionHistory)
+        #포트폴리오id로 필터링
+        .filter(TransactionHistory.portfolio_id == portfolio_id)
         .order_by(TransactionHistory.transaction_id.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
-
 
 def get_transaction_count(db: Session):
     return db.query(TransactionHistory).count()
