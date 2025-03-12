@@ -107,30 +107,3 @@ def delete_transactions(
         return {"message": "트랜잭션 삭제 성공"}
     except Exception as e:
         raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
-
-
-
-@router.post(
-    "/transactions",
-    response_model=TransactionOut,
-    responses={
-        500: {
-            "description": "데이터베이스 연결 오류",
-            "content": {
-                "application/json": {"example": {"detail": "트랜잭션 생성 오류 발생"}}
-            },
-        },
-    },
-)
-def create_transaction(
-    transaction: TransactionCreate,
-    db: Session = Depends(get_db)
-):
-    """
-    transaction 생성
-    """
-    try:
-        new_transaction = crud_transaction.create_transaction(db, transaction)
-        return new_transaction
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="트랜잭션 생성 오류 발생")
