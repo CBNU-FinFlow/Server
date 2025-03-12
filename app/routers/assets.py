@@ -265,55 +265,119 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
 
 
 @router.patch(
-    "/",
-    response_model=List[AssetRead],
-    summary="보유 자산 수정",
+    "/transfer",
+    response_model=AssetRead,
+    summary="보유 자산 다른 포트폴리오로 전송",
     responses={
-        200: {"description": "자산이 성공적으로 수정됨."},
+        200: {"description": "자산이 성공적으로 전송됨."},
         400: {"description": "잘못된 요청 데이터."},
+        404: {"description": "자산이나 포트폴리오를 찾을 수 없음."},
     },
 )
-def update_assets(updates: List[AssetUpdate], db: Session = Depends(get_db)):
+def update_assets(
+    source_portfolio_id: int = Body(..., description="원본 포트폴리오 ID"),
+    financial_product_id: int = Body(..., description="전송할 금융 상품 ID"),
+    target_portfolio_id: int = Body(..., description="대상 포트폴리오 ID"),
+    db: Session = Depends(get_db),
+):
     """
-    **보유 자산 정보를 수정하는 API.**
+    **보유 자산을 다른 포트폴리오로 전송하는 API.**
 
-    - `portfolio_id`, `financial_product_id`를 기준으로 자산을 찾고, 해당 항목을 업데이트함.
+    - `source_portfolio_id`, `financial_product_id`를 기준으로 자산을 찾고, `target_portfolio_id` 포트폴리오로 전송합니다.
+    - 원본 자산은 삭제되고, 대상 포트폴리오에 자산이 추가됩니다.
+    - 동일한 자산이 대상 포트폴리오에 이미 존재하는 경우, 수량이 합산됩니다.
 
     **Response:**
-    - `200 OK`: 성공적으로 자산이 수정됨
+    - `200 OK`: 성공적으로 자산이 전송됨
     - `400 Bad Request`: 요청이 잘못되었을 경우
+    - `404 Not Found`: 자산이나 포트폴리오를 찾을 수 없음
     """
-    updated_assets = []
-    for upd in updates:
-        asset = (
-            db.query(PortfolioHoldings)
-            .filter_by(
-                portfolio_id=upd.portfolio_id,
-                financial_product_id=upd.financial_product_id,
-            )
-            .first()
+    # 소스 포트폴리오 확인
+    source_portfolio = db.query(Portfolio).filter(Portfolio.portfolio_id == source_portfolio_id).first()
+    if not source_portfolio:
+        raise HTTPException(status_code=404, detail="원본 포트폴리오를 찾을 수 없습니다.")
+
+    # 타겟 포트폴리오 확인
+    target_portfolio = db.query(Portfolio).filter(Portfolio.portfolio_id == target_portfolio_id).first()
+    if not target_portfolio:
+        raise HTTPException(status_code=404, detail="대상 포트폴리오를 찾을 수 없습니다.")
+    
+    # 동일한 포트폴리오인 경우 오류 반환
+    if source_portfolio_id == target_portfolio_id:
+        raise HTTPException(status_code=400, detail="원본과 대상 포트폴리오가 동일합니다.")
+
+    # 원본 자산 찾기
+    source_asset = (
+        db.query(PortfolioHoldings)
+        .filter_by(
+            portfolio_id=source_portfolio_id,
+            financial_product_id=financial_product_id,
         )
+        .first()
+    )
 
-        if not asset:
-            # 존재하지 않는 자산인 경우, 무시하거나 예외를 던질 수 있음
-            continue
+    if not source_asset:
+        raise HTTPException(status_code=404, detail="전송할 자산을 찾을 수 없습니다.")
 
-        if upd.currency_code is not None:
-            asset.currency_code = upd.currency_code
-        if upd.price is not None:
-            asset.price = upd.price
-        if upd.quantity is not None:
-            asset.quantity = upd.quantity
+    # 대상 포트폴리오에 같은 자산이 있는지 확인
+    target_asset = (
+        db.query(PortfolioHoldings)
+        .filter_by(
+            portfolio_id=target_portfolio_id,
+            financial_product_id=financial_product_id,
+        )
+        .first()
+    )
 
-        db.add(asset)
-        updated_assets.append(asset)
-
-    db.commit()
-
-    for asset in updated_assets:
-        db.refresh(asset)
-
-    return updated_assets
+    if target_asset:
+        # 이미 존재하는 경우, 수량 합산 및 평균 가격 계산
+        total_value = (target_asset.price * target_asset.quantity) + (source_asset.price * source_asset.quantity)
+        target_asset.quantity += source_asset.quantity
+        target_asset.price = total_value / target_asset.quantity
+        
+        # 원본 자산 삭제
+        db.delete(source_asset)
+        db.commit()
+        db.refresh(target_asset)
+        
+        return AssetRead(
+            portfolio_id=target_asset.portfolio_id,
+            currency_code=target_asset.currency_code,
+            price=target_asset.price,
+            quantity=target_asset.quantity,
+            financial_product=FinancialProductRead(
+                financial_product_id=target_asset.financial_product.financial_product_id,
+                product_name=target_asset.financial_product.product_name,
+                ticker=target_asset.financial_product.ticker,
+            ),
+        )
+    else:
+        # 대상 포트폴리오에 자산이 없는 경우, 새로 생성
+        new_asset = PortfolioHoldings(
+            portfolio_id=target_portfolio_id,
+            financial_product_id=financial_product_id,
+            currency_code=source_asset.currency_code,
+            price=source_asset.price,
+            quantity=source_asset.quantity,
+        )
+        db.add(new_asset)
+        
+        # 원본 자산 삭제
+        db.delete(source_asset)
+        db.commit()
+        db.refresh(new_asset)
+        
+        return AssetRead(
+            portfolio_id=new_asset.portfolio_id,
+            currency_code=new_asset.currency_code,
+            price=new_asset.price,
+            quantity=new_asset.quantity,
+            financial_product=FinancialProductRead(
+                financial_product_id=new_asset.financial_product.financial_product_id,
+                product_name=new_asset.financial_product.product_name,
+                ticker=new_asset.financial_product.ticker,
+            ),
+        )
 
 
 @router.delete(
