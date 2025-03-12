@@ -42,7 +42,12 @@ def get_db():
         },
     },
 )
-def read_transactions(page: int = 1, per_page: int = 10, db: Session = Depends(get_db)):
+def read_transactions(
+    portfolio_id: int, 
+    page: int = 1,
+    per_page: int = 10,
+    db: Session = Depends(get_db)
+):
     """
     거래 내역 페이징 조회
     - page: 현재 페이지(1부터 시작)
@@ -67,8 +72,9 @@ def read_transactions(page: int = 1, per_page: int = 10, db: Session = Depends(g
         raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
 
 
+# /transactions/{transaction_id} 단일경로 변경 
 @router.delete(
-    "/transactions/{transaction_id}",
+    "/transactions",
     response_model=DeleteResponse,
     responses={
         404: {
