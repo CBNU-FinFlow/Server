@@ -11,11 +11,10 @@ from app.models.portfolio import PortfolioHoldings, Portfolio
 from app.schemas.asset import (
     AssetRead,
     AssetCreate,
-    AssetUpdate,
     AssetBase,
     AssetPageResponse,
 )
-from app.schemas.financial_product import FinancialProductRead
+from app.schemas.financial_product import FinancialProductRead, SectorInfo
 from app.models.financial_product import FinancialProducts
 from app.models.transaction import TransactionHistory
 
@@ -95,6 +94,10 @@ def read_assets(
                 financial_product_id=holding.financial_product.financial_product_id,
                 product_name=holding.financial_product.product_name,
                 ticker=holding.financial_product.ticker,
+                sector=SectorInfo(
+                    sector_id=holding.financial_product.sector.sector_id,
+                    sector_name=holding.financial_product.sector.sector_name,
+                ),
             ),
         )
         for holding in holdings_query
@@ -171,6 +174,10 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
                         financial_product_id=fp.financial_product_id,
                         product_name=fp.product_name,
                         ticker=fp.ticker,
+                        sector=SectorInfo(
+                            sector_id=fp.sector.sector_id,
+                            sector_name=fp.sector.sector_name,
+                        ),
                     ),
                 )
                 db.delete(existing)
@@ -188,6 +195,10 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
                         financial_product_id=existing.financial_product.financial_product_id,
                         product_name=existing.financial_product.product_name,
                         ticker=existing.financial_product.ticker,
+                        sector=SectorInfo(
+                            sector_id=existing.financial_product.sector.sector_id,
+                            sector_name=existing.financial_product.sector.sector_name,
+                        ),
                     ),
                 )
 
@@ -223,6 +234,10 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
                     financial_product_id=existing.financial_product.financial_product_id,
                     product_name=existing.financial_product.product_name,
                     ticker=existing.financial_product.ticker,
+                    sector=SectorInfo(
+                        sector_id=existing.financial_product.sector.sector_id,
+                        sector_name=existing.financial_product.sector.sector_name,
+                    ),
                 ),
             )
 
@@ -260,6 +275,10 @@ def create_asset_and_transaction(asset_data: AssetCreate, db: Session = Depends(
             financial_product_id=new_asset.financial_product.financial_product_id,
             product_name=new_asset.financial_product.product_name,
             ticker=new_asset.financial_product.ticker,
+            sector=SectorInfo(
+                sector_id=new_asset.financial_product.sector.sector_id,
+                sector_name=new_asset.financial_product.sector.sector_name,
+            ),
         ),
     )
 
@@ -349,6 +368,10 @@ def update_assets(
                 financial_product_id=target_asset.financial_product.financial_product_id,
                 product_name=target_asset.financial_product.product_name,
                 ticker=target_asset.financial_product.ticker,
+                sector=SectorInfo(
+                    sector_id=target_asset.financial_product.sector.sector_id,
+                    sector_name=target_asset.financial_product.sector.sector_name,
+                ),
             ),
         )
     else:
@@ -376,6 +399,10 @@ def update_assets(
                 financial_product_id=new_asset.financial_product.financial_product_id,
                 product_name=new_asset.financial_product.product_name,
                 ticker=new_asset.financial_product.ticker,
+                sector=SectorInfo(
+                    sector_id=new_asset.financial_product.sector.sector_id,
+                    sector_name=new_asset.financial_product.sector.sector_name,
+                ),
             ),
         )
 
@@ -466,7 +493,11 @@ def search_financial_products(
         FinancialProductRead(
             financial_product_id=product.financial_product_id,
             product_name=product.product_name,
-            ticker=product.ticker
+            ticker=product.ticker,
+            sector=SectorInfo(
+                sector_id=product.sector.sector_id,
+                sector_name=product.sector.sector_name,
+            ),
         )
         for product in results
     ]
