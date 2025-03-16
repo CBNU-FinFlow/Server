@@ -3,6 +3,22 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from app.schemas.financial_product import FinancialProductRead  # 금융상품 스키마 임포트
+
+class TransactionRead(BaseModel):
+    transaction_id: int
+    portfolio_id: int
+    financial_product_id: int
+    transaction_type: str
+    price: float
+    profit_rate: Optional[float] = None
+    currency_code: Optional[str] = None
+    quantity: Optional[float] = None
+    created_at: Optional[datetime] = None
+    financial_product: FinancialProductRead
+
+    class Config:
+        orm_mode = True
 
 
 class TransactionBase(BaseModel):
@@ -35,4 +51,5 @@ class TransactionListResponse(BaseModel):
     total_count: int
     page: int
     per_page: int
-    data: list[TransactionOut]
+    data: list[TransactionRead]
+
