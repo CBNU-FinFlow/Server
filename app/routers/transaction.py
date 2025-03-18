@@ -63,7 +63,6 @@ def read_transactions(
     if not portfolio:
         raise HTTPException(status_code=404, detail="거래내역을 찾을 수 없습니다.")
 
-
     offset = (page - 1) * per_page
 
     total = db.query(TransactionHistory).filter(
@@ -95,10 +94,10 @@ def read_transactions(
     ]
 
     return {
-        "total": total,
+        "total": total,          # 변수명을 total로 일관성 있게 사용
         "page": page,
         "per_page": per_page,
-        "transactions": transaction_read_list,
+        "data": transaction_read_list,  # 응답 모델의 필드명(data)에 맞게 key 변경
     }
 
 
@@ -130,21 +129,24 @@ def delete_transactions(
     - transaction_ids: 삭제할 거래 내역 ID 목록
     """
     not_found_ids = []
-    for transaction_id in transaction_ids:
-        success = crud_transaction.delete_transaction(db, transaction_id)
-        if not success:
-            not_found_ids.append(transaction_id)
-    if not_found_ids:
-        raise HTTPException(
-            status_code=404, 
-            detail=f"Transaction 찾을 수 없음: {not_found_ids}"
-        )
-    return {"message": "트랜잭션 삭제 성공"}
+    try:
+        for transaction_id in transaction_ids:
+            success = crud_transaction.delete_transaction(db, transaction_id)
+            if not success:
+                not_found_ids.append(transaction_id)
+        if not_found_ids:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Transaction 찾을 수 없음: {not_found_ids}"
+            )
+        return {"message": "트랜잭션 삭제 성공"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
+
 
 
 @router.post(
     "/transactions",
-    summary="거래 내역 생성",
     response_model=TransactionOut,
     responses={
         500: {
@@ -160,7 +162,10 @@ def create_transaction(
     db: Session = Depends(get_db)
 ):
     """
-    거래 내역 생성
+    transaction 생성
     """
-    new_transaction = crud_transaction.create_transaction(db, transaction)
-    return new_transaction
+    try:
+        new_transaction = crud_transaction.create_transaction(db, transaction)
+        return new_transaction
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="트랜잭션 생성 오류 발생")
