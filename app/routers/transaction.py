@@ -3,16 +3,16 @@ from typing import List
 from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.schemas.transaction import (
-    TransactionOut,
     DeleteResponse,
     TransactionListResponse,
-    TransactionCreate,
     TransactionRead
 )
 import app.crud.transaction as crud_transaction
 from app.schemas.financial_product import FinancialProductRead
 from app.models.transaction import TransactionHistory
 from app.models.portfolio import Portfolio
+from app.models.financial_product import FinancialProducts
+from app.models.sector import Sectors
 
 router = APIRouter()
 
@@ -71,7 +71,13 @@ def read_transactions(
 
     transactions_query = db.query(TransactionHistory).filter(
         TransactionHistory.portfolio_id == portfolio_id
-    ).offset(offset).limit(per_page).all()
+    ).join(
+        FinancialProducts, 
+        TransactionHistory.financial_product_id == FinancialProducts.financial_product_id
+    ).join(
+        Sectors,
+        FinancialProducts.sector_id == Sectors.sector_id
+    ).order_by(TransactionHistory.created_at.desc()).offset(offset).limit(per_page).all()
 
     transaction_read_list = [
         TransactionRead(
@@ -88,6 +94,10 @@ def read_transactions(
                 financial_product_id=t.financial_product.financial_product_id,
                 product_name=t.financial_product.product_name,
                 ticker=t.financial_product.ticker,
+                sector={
+                    "sector_id": t.financial_product.sector.sector_id,
+                    "sector_name": t.financial_product.sector.sector_name
+                }
             )
         )
         for t in transactions_query
