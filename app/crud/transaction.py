@@ -18,7 +18,6 @@ def get_transactions(db: Session, portfolio_id: int, skip: int = 0, limit: int =
 def get_transaction_count(db: Session):
     return db.query(TransactionHistory).count()
 
-
 def delete_transaction(db: Session, transaction_id: int):
     transaction = (
         db.query(TransactionHistory)

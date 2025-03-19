@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException,Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from typing import List
 from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
@@ -6,10 +6,13 @@ from app.schemas.transaction import (
     TransactionOut,
     DeleteResponse,
     TransactionListResponse,
-    TransactionCreate
+    TransactionCreate,
+    TransactionRead
 )
 import app.crud.transaction as crud_transaction
-
+from app.schemas.financial_product import FinancialProductRead
+from app.models.transaction import TransactionHistory
+from app.models.portfolio import Portfolio
 
 router = APIRouter()
 
@@ -24,6 +27,7 @@ def get_db():
 
 @router.get(
     "/transactions",
+    summary="거래 내역 조회",
     response_model=TransactionListResponse,
     responses={
         400: {
@@ -32,6 +36,12 @@ def get_db():
                 "application/json": {
                     "example": {"detail": "Page와 per_page는 1 이상이어야 합니다."}
                 }
+            },
+        },
+        404: {
+            "description": "포트폴리오를 찾을 수 없음.",
+            "content": {
+                "application/json": {"example": {"detail": "포트폴리오를 찾을 수 없음"}}
             },
         },
         500: {
@@ -43,38 +53,57 @@ def get_db():
     },
 )
 def read_transactions(
-    portfolio_id: int, 
-    page: int = 1,
-    per_page: int = 10,
-    db: Session = Depends(get_db)
+    portfolio_id: int = Query(..., description="조회할 포트폴리오 ID"),
+    page: int = Query(1, ge=1, description="페이지 번호 (1부터 시작)"),
+    per_page: int = Query(10, ge=1, le=100, description="페이지당 표시할 개수 (최대 100)"),
+    db: Session = Depends(get_db),
 ):
-    """
-    거래 내역 페이징 조회
-    - page: 현재 페이지(1부터 시작)
-    - per_page: 페이지당 건수
-    """
-    if page < 1 or per_page < 1:
-        raise HTTPException(
-            status_code=400, detail="Page와 per_page는 1 이상이어야 합니다."
+
+    portfolio = db.query(Portfolio).filter(Portfolio.portfolio_id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="거래내역을 찾을 수 없습니다.")
+
+    offset = (page - 1) * per_page
+
+    total = db.query(TransactionHistory).filter(
+        TransactionHistory.portfolio_id == portfolio_id
+    ).count()
+
+    transactions_query = db.query(TransactionHistory).filter(
+        TransactionHistory.portfolio_id == portfolio_id
+    ).offset(offset).limit(per_page).all()
+
+    transaction_read_list = [
+        TransactionRead(
+            transaction_id=t.transaction_id,
+            portfolio_id=t.portfolio_id,
+            financial_product_id=t.financial_product_id,
+            transaction_type=t.transaction_type,
+            price=t.price,
+            profit_rate=t.profit_rate,
+            currency_code=t.currency_code,
+            quantity=t.quantity,
+            created_at=t.created_at,
+            financial_product=FinancialProductRead(
+                financial_product_id=t.financial_product.financial_product_id,
+                product_name=t.financial_product.product_name,
+                ticker=t.financial_product.ticker,
+            )
         )
+        for t in transactions_query
+    ]
 
-    try:
-        skip = (page - 1) * per_page
-        total_count = crud_transaction.get_transaction_count(db)
-        transactions = crud_transaction.get_transactions(db, skip=skip, limit=per_page)
-        return {
-            "total_count": total_count,
-            "page": page,
-            "per_page": per_page,
-            "data": transactions,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
+    return {
+        "total": total,          # 변수명을 total로 일관성 있게 사용
+        "page": page,
+        "per_page": per_page,
+        "data": transaction_read_list,  # 응답 모델의 필드명(data)에 맞게 key 변경
+    }
 
 
-# /transactions/{transaction_id} 단일경로 변경 
 @router.delete(
     "/transactions",
+    summary="거래 내역 삭제",
     response_model=DeleteResponse,
     responses={
         404: {
